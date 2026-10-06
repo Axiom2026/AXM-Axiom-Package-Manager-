@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "axiom-package-manager"
+version = "0.1.0"
+description = "Axiom Package Manager"
+readme = "README.md"
+requires-python = ">=3.12"
+
+[project.scripts]
+axm = "axm:main"
+
+[tool.setuptools]
+py-modules = ["axm", "builder"]
