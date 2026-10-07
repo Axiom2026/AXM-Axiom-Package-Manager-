@@ -797,7 +797,7 @@ def package_info(pkg_name):
             f"[-] Error: Package '{pkg_name}' is not installed."
         )
         return
-
+    
     info = db[pkg_name]
 
     dependencies = info.get("dependencies", [])
@@ -817,6 +817,67 @@ def package_info(pkg_name):
 
     for file_path in info.get("files", []):
         print(f"    - {file_path}")
+
+def normalize_system_path(path):
+    """Normalize a path for system-wide package ownership lookup."""
+    if not path.startswith("/"):
+        path = "/" + path
+
+    return os.path.normpath(path)
+
+
+def find_package_owners(path):
+    """Return installed packages that contain the given path."""
+    target_path = normalize_system_path(path)
+    db = load_database()
+    owners = []
+
+    for package_name, package_info_data in db.items():
+        for file_path in package_info_data.get("files", []):
+            stored_path = normalize_system_path(file_path)
+
+            if stored_path == target_path:
+                owners.append(
+                    {
+                        "name": package_name,
+                        "version": package_info_data.get(
+                            "version",
+                            "unknown",
+                        ),
+                    }
+                )
+
+                break
+
+    return owners
+
+
+def show_file_ownership(path):
+    """Display which installed package owns a file."""
+    target_path = normalize_system_path(path)
+
+    if os.path.isdir(target_path) and not os.path.islink(target_path):
+        print(
+            f"[*] '{target_path}' is a directory. "
+            "Ownership lookup is intended for files and symlinks."
+        )
+        return
+
+    owners = find_package_owners(target_path)
+
+    if not owners:
+        print(
+            f"[-] No installed package owns "
+            f"'{target_path}'."
+        )
+        return
+
+    print("=== File Ownership ===")
+    print(f"Path    : {target_path}")
+
+    for owner in owners:
+        print(f"Package : {owner['name']}")
+        print(f"Version : {owner['version']}")
 
 
 def search_packages(query):
@@ -1072,6 +1133,7 @@ def print_help():
     print("  sudo axm add-repo <name> <url>")
     print("  axm history")
     print("  axm info <package_name>")
+    print("  axm owns <file_path>")
     print("  sudo axm upgrade")
     print("  axm build <source_directory>")
     print("  axm --version")
@@ -1149,6 +1211,12 @@ def main():
                 )
 
             package_info(args[1])
+
+        elif command == "owns":
+            if len(args) < 2:
+                die("Please specify the file path.")
+
+            show_file_ownership(args[1])
 
         elif command == "build":
             if len(args) < 2:
